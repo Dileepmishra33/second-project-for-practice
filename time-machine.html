@@ -1,0 +1,384 @@
+<!-- Save as time-machine.html and open in your browser -->
+<!doctype html>
+<html lang="hi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Future Time Machine</title>
+<style>
+  :root{
+    --bg:#030411;
+    --panel:#0b1020;
+    --accent:#6ef0ff;
+    --glow:0 0 20px rgba(110,240,255,0.12);
+    --glass: rgba(255,255,255,0.04);
+    --glass-2: rgba(255,255,255,0.02);
+  }
+  *{box-sizing:border-box;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;}
+  html,body{height:100%;margin:0;background:radial-gradient(circle at 20% 10%, #071028 0%, var(--bg) 50%);color:#dbe9ff}
+  .wrap{min-height:100vh;display:grid;place-items:center;padding:28px;}
+  .machine{
+    width:920px;max-width:95vw;border-radius:14px;padding:22px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    box-shadow: 0 8px 30px rgba(0,0,0,0.7); border:1px solid rgba(255,255,255,0.03); display:grid; grid-template-columns: 420px 1fr; gap:18px; align-items:stretch;
+  }
+
+  /* Left control panel */
+  .panel{
+    background:linear-gradient(180deg, rgba(255,255,255,0.015), var(--panel));
+    padding:16px;border-radius:10px;display:flex;flex-direction:column;gap:12px;
+    border:1px solid var(--glass);
+  }
+  h1{font-size:18px;margin:0 0 6px 0;color:var(--accent)}
+  label{font-size:13px;opacity:0.9}
+  input[type="datetime-local"]{
+    width:100%;padding:10px;border-radius:8px;border:1px solid var(--glass-2);background:transparent;color:inherit;
+  }
+  .btn{
+    display:inline-flex;align-items:center;gap:8px;padding:10px 14px;border-radius:10px;border:none;background:linear-gradient(90deg,var(--accent),#9cffb7);color:#00303a;font-weight:700;cursor:pointer;
+    box-shadow: var(--glow);
+  }
+  .btn:disabled{opacity:0.45;cursor:not-allowed;box-shadow:none}
+
+  /* Right visual area */
+  .view{
+    border-radius:10px;padding:12px;background:linear-gradient(180deg, rgba(255,255,255,0.012), rgba(255,255,255,0.01)); position:relative; overflow:hidden;
+    border:1px solid rgba(255,255,255,0.02);
+  }
+
+  /* starfield */
+  .stars, .stars::after {
+    position:absolute;inset:0;
+    background:transparent;
+    z-index:1;
+    pointer-events:none;
+  }
+  .stars::after{
+    content:"";
+    background-image:
+      radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,0.9) 0%, rgba(255,255,255,0.0) 40%),
+      radial-gradient(1px 1px at 32% 40%, rgba(255,255,255,0.85) 0%, rgba(255,255,255,0.0) 40%),
+      radial-gradient(1px 1px at 60% 10%, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.0) 40%),
+      radial-gradient(1px 1px at 80% 80%, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.0) 40%);
+    background-size: 100% 100%;
+    opacity:0.9;filter:blur(.2px);
+  }
+
+  /* warp lines that animate on travel */
+  .warp {
+    position:absolute;inset:0;z-index:2;pointer-events:none;opacity:0;
+  }
+  .warp.active{opacity:1}
+  .warp-line{
+    position:absolute;left:50%;top:-10%;width:2px;height:120%;transform-origin:center;
+    background:linear-gradient(to bottom, rgba(110,240,255,0.0), rgba(110,240,255,0.85), rgba(110,240,255,0.0));
+    filter:blur(2px); opacity:0.7; transform:translateX(-50%) rotate(0deg);
+    animation: stretch 1.6s linear forwards;
+  }
+  .warp-line:nth-child(odd){animation-duration:1.9s}
+  @keyframes stretch{
+    from{transform:translateX(-50%) scaleY(0.02); opacity:0.0}
+    30%{opacity:0.6}
+    to{transform:translateX(-50%) scaleY(1); opacity:1}
+  }
+
+  /* ship / pod */
+  .pod{
+    position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:160px;height:160px;border-radius:20px;
+    background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015)); z-index:4;
+    display:grid;place-items:center;box-shadow: 0 8px 30px rgba(0,0,0,0.7), 0 0 40px rgba(110,240,255,0.06);
+    border:1px solid rgba(110,240,255,0.12);
+  }
+  .pod .glass{
+    width:88px;height:88px;border-radius:50%;background:radial-gradient(circle at 30% 25%, rgba(255,255,255,0.28), rgba(255,255,255,0.06) 40%, rgba(0,0,0,0.12) 100%);display:flex;align-items:center;justify-content:center;color:#002;
+    font-weight:800;font-size:20px;
+    box-shadow: inset 0 6px 20px rgba(255,255,255,0.03), 0 6px 30px rgba(110,240,255,0.03);
+  }
+  .pod.traveling{transform:translate(-50%,-50%) scale(0.6) rotate(8deg); transition:transform 1s cubic-bezier(.2,.9,.3,1)}
+  .pod.ready{box-shadow: 0 20px 60px rgba(110,240,255,0.08), 0 0 60px rgba(110,240,255,0.06)}
+
+  /* HUD text */
+  .hud{position:absolute;left:20px;top:18px;z-index:5;font-size:13px;opacity:0.95}
+  .arrival{position:absolute;right:18px;bottom:18px;z-index:5;background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01));padding:12px;border-radius:10px;border:1px solid var(--glass);min-width:260px;}
+  .arrival h2{margin:0;font-size:14px;color:var(--accent)}
+  .arrival p{margin:6px 0 0 0;font-size:13px;color:#cfefff;line-height:1.3}
+
+  /* countdown overlay */
+  .overlay{
+    position:absolute;inset:0;display:grid;place-items:center;z-index:6;pointer-events:none;
+  }
+  .count{
+    font-size:84px;font-weight:900;color:var(--accent);text-shadow:0 6px 40px rgba(110,240,255,0.06);opacity:0;transform:scale(0.6);
+    transition:opacity .25s, transform .25s;
+  }
+  .count.show{opacity:1;transform:scale(1)}
+  .log{margin-top:8px;font-size:13px;color:#bfefff;opacity:0.95}
+
+  /* small helpers */
+  .row{display:flex;gap:10px;align-items:center}
+  .muted{opacity:0.8;font-size:13px}
+  .note{font-size:12px;color:#9ec7d9}
+  pre{white-space:pre-wrap;font-size:13px;margin:0}
+  footer{font-size:12px;color:#9ec7d9;margin-top:8px}
+  @media (max-width:760px){
+    .machine{grid-template-columns:1fr; padding:14px}
+    .pod{width:120px;height:120px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="machine" role="application" aria-label="Future Time Machine">
+    <div class="panel" aria-hidden="false">
+      <h1>Future Time Machine</h1>
+      <div class="muted">Select future date & time (sirf future select karo)</div>
+      <label for="when">Destination date & time</label>
+      <input id="when" type="datetime-local" />
+      <div class="row">
+        <button id="engage" class="btn">Engage Time Drive</button>
+        <button id="random" class="btn" style="background:transparent;color:var(--accent);box-shadow:none;border:1px solid var(--glass)">Pick Random</button>
+      </div>
+      <div class="note">Tip: agar automatic demo chahiye to "Pick Random" dabao.</div>
+      <div style="flex:1"></div>
+      <div>
+        <label>Current local time</label>
+        <pre id="now" aria-live="polite"></pre>
+        <footer>Save this file and open in browser. No external libs required.</footer>
+      </div>
+    </div>
+
+    <div class="view" role="region" aria-label="Visualization">
+      <div class="stars" aria-hidden="true"></div>
+
+      <!-- warp lines (generated via JS) -->
+      <div class="warp" id="warp" aria-hidden="true"></div>
+
+      <div class="pod" id="pod" aria-hidden="false">
+        <div class="glass" id="podLabel">READY</div>
+      </div>
+
+      <div class="hud" id="hud">
+        <div><strong>Destination:</strong> <span id="destLabel">—</span></div>
+        <div style="margin-top:6px" class="muted"><strong>ETA:</strong> <span id="eta">—</span></div>
+      </div>
+
+      <div class="arrival" id="arrival" aria-live="polite">
+        <h2 id="arrTitle">Awaiting jump...</h2>
+        <p id="arrText">Select a future time and engage the Time Drive.</p>
+      </div>
+
+      <div class="overlay" id="overlay" aria-hidden="true">
+        <div class="count" id="count">3</div>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Basic DOM refs
+  const whenInput = document.getElementById('when');
+  const engageBtn = document.getElementById('engage');
+  const randomBtn = document.getElementById('random');
+  const nowEl = document.getElementById('now');
+  const destLabel = document.getElementById('destLabel');
+  const etaEl = document.getElementById('eta');
+  const pod = document.getElementById('pod');
+  const podLabel = document.getElementById('podLabel');
+  const overlay = document.getElementById('overlay');
+  const countEl = document.getElementById('count');
+  const logEl = document.getElementById('log');
+  const warp = document.getElementById('warp');
+  const arrivalTitle = document.getElementById('arrTitle');
+  const arrivalText = document.getElementById('arrText');
+
+  // Live current time display (updates every second)
+  function updateNow(){
+    const now = new Date();
+    nowEl.textContent = now.toLocaleString();
+  }
+  setInterval(updateNow,1000);
+  updateNow();
+
+  // helper: format date nicely
+  function niceDate(dt){
+    try{
+      return dt.toLocaleString(undefined, {dateStyle:'full', timeStyle:'short'});
+    }catch(e){
+      return dt.toString();
+    }
+  }
+
+  // set minimum of input to now+1 minute (to force future)
+  function setMin(){
+    const min = new Date(Date.now()+60*1000);
+    // format to yyyy-mm-ddThh:mm (local)
+    const pad = n=>String(n).padStart(2,'0');
+    const s = `${min.getFullYear()}-${pad(min.getMonth()+1)}-${pad(min.getDate())}T${pad(min.getHours())}:${pad(min.getMinutes())}`;
+    whenInput.min = s;
+  }
+  setMin();
+
+  // Calculate ETA - pretty simple: difference in human-friendly form
+  function calcETA(target){
+    const now = new Date();
+    let diff = Math.max(0, Math.floor((target - now) / 1000)); // seconds
+    const days = Math.floor(diff / 86400); diff %= 86400;
+    const hrs = Math.floor(diff / 3600); diff %= 3600;
+    const mins = Math.floor(diff / 60); const secs = diff % 60;
+    let parts = [];
+    if(days) parts.push(days + 'd');
+    if(hrs) parts.push(hrs + 'h');
+    if(mins) parts.push(mins + 'm');
+    if(!parts.length) parts.push(secs + 's');
+    return parts.join(' ');
+  }
+
+  // When user changes input - update HUD
+  whenInput.addEventListener('input', ()=>{
+    const v = whenInput.value;
+    if(!v) { destLabel.textContent = '—'; etaEl.textContent = '—'; return; }
+    const dt = new Date(v);
+    destLabel.textContent = niceDate(dt);
+    etaEl.textContent = calcETA(dt);
+    podLabel.textContent = 'READY';
+  });
+
+  // random future generator (1 year to 300 years)
+  randomBtn.addEventListener('click', ()=>{
+    const now = new Date();
+    const minMs = now.getTime() + (60*1000); // at least 1 minute
+    const maxMs = now.getTime() + (1000 * 60 * 60 * 24 * 365 * 200); // up to ~200 years
+    const rand = Math.floor(Math.random() * (maxMs - minMs)) + minMs;
+    const dt = new Date(rand);
+    // format to input value
+    function toInput(d){
+      const pad = n=>String(n).padStart(2,'0');
+      return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
+    whenInput.value = toInput(dt);
+    whenInput.dispatchEvent(new Event('input'));
+  });
+
+  // create warp lines
+  function makeWarpLines(n=28){
+    warp.innerHTML = '';
+    for(let i=0;i<n;i++){
+      const div = document.createElement('div');
+      div.className = 'warp-line';
+      div.style.left = (15 + Math.random()*70) + '%';
+      div.style.transform = `translateX(-50%) rotate(${(Math.random()-0.5)*10}deg)`;
+      warp.appendChild(div);
+    }
+  }
+  makeWarpLines(28);
+
+  // generate a fun "future scene" based on year heuristics
+  function futureSceneText(dt){
+    const year = dt.getFullYear();
+    let scene = [];
+    if(year <= 2035){
+      scene.push(`Year ${year}: A near future city — glass trams and AR billboards fill the skyline.`);
+      scene.push("People still commute, but AI assistants micro-manage schedules; chai stalls are now robotic.");
+    } else if(year <= 2075){
+      scene.push(`Year ${year}: Mega-structures and vertical farms tower over old skylines.`);
+      scene.push("Drones hum in lanes; climate-adapted parks float on rooftops. Languages mix with emotive emoji-speech.");
+    } else if(year <= 2150){
+      scene.push(`Year ${year}: Fusion microgrids power cities. Oceans host modular habitats.`);
+      scene.push("Intercity travel uses hyperloops and quantum-synced logistics; fashion glows faintly.");
+    } else {
+      scene.push(`Year ${year}: Humans and synthetic intelligences co-design habitats across planets.`);
+      scene.push("Time capsule monuments recall your era — they call the early 2020s 'the age of rapid curiosity'.");
+    }
+    // add one random "surprising" detail
+    const surprises = [
+      "Your favorite childhood snack is a museum exhibit here.",
+      "Music is often composed collaboratively by humans and AIs in public squares.",
+      "Street names sometimes change weekly based on weather poetry.",
+      "Handwritten letters are collected as rare artifacts."
+    ];
+    scene.push(surprises[Math.floor(Math.random()*surprises.length)]);
+    return scene.join(' ');
+  }
+
+  // main engage sequence
+  engageBtn.addEventListener('click', async ()=>{
+    const v = whenInput.value;
+    if(!v){
+      alert('Future date select karo pehle — ya "Pick Random" try karo.');
+      return;
+    }
+    const target = new Date(v);
+    const now = new Date();
+    if(target <= new Date(now.getTime()+30*1000)){
+      // if user picked very near future, allow but warn
+      if(!confirm('Chaha tumne bohot kareeb future. Phir bhi jump karna hai?')) return;
+    }
+    // Setup HUD
+    destLabel.textContent = niceDate(target);
+    etaEl.textContent = calcETA(target);
+
+    // start travel animation
+    podLabel.textContent = 'ENGAGING';
+    pod.classList.add('traveling');
+    overlay.style.pointerEvents = 'auto';
+    overlay.setAttribute('aria-hidden','false');
+    // show countdown 3..2..1
+    for(let i=3;i>=1;i--){
+      countEl.textContent = i;
+      countEl.classList.add('show');
+      logEl.textContent = `Charging jump coils — ${i}`;
+      await new Promise(r=>setTimeout(r,750));
+      countEl.classList.remove('show');
+      await new Promise(r=>setTimeout(r,120));
+    }
+
+    // ignite warp
+    overlay.style.pointerEvents = 'none';
+    warp.classList.add('active');
+    podLabel.textContent = 'IN WARP';
+    pod.classList.add('ready');
+    // animate warp lines quickly
+    const lines = warp.querySelectorAll('.warp-line');
+    lines.forEach((ln, idx)=>{
+      ln.style.animationDelay = (idx*0.02) + 's';
+      ln.style.opacity = '1';
+      ln.style.transform = `translateX(-50%) scaleY(1.6)`;
+    });
+
+    // short travel pause to mimic jump
+    logEl.textContent = 'Traveling through chrono-stream...';
+    await new Promise(r=>setTimeout(r,1400));
+
+    // Arrive!
+    warp.classList.remove('active');
+    pod.classList.remove('traveling');
+    podLabel.textContent = 'ARRIVED';
+    arrivalTitle.textContent = `Arrived at ${target.getFullYear()}`;
+    const scene = futureSceneText(target);
+    arrivalText.textContent = scene;
+
+    // show precise formatted arrival time & ETA = 0
+    destLabel.textContent = niceDate(target);
+    etaEl.textContent = 'Arrived';
+
+    // small celebratory flash (temporary)
+    flashArrival();
+  });
+
+  function flashArrival(){
+    // tiny visual feedback: create brief glow
+    pod.style.transition = 'box-shadow .6s, transform .6s';
+    pod.style.boxShadow = '0 30px 120px rgba(110,240,255,0.18)';
+    setTimeout(()=>{ pod.style.boxShadow = ''; },900);
+  }
+
+  // Accessibility: allow Enter key to engage
+  whenInput.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter') engageBtn.click();
+  });
+
+  // Initialize with a random target to show UI
+  randomBtn.click();
+</script>
+</body>
+</html>
